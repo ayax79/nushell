@@ -16,21 +16,34 @@ impl PluginCommand for ToDataType {
     }
 
     fn description(&self) -> &str {
-        "Convert a string to a specific datatype."
+        "Convert a value to a polars datatype."
     }
 
     fn signature(&self) -> Signature {
         Signature::build(self.name())
-            .input_output_type(Type::String, Type::Custom("datatype".into()))
+            .input_output_types(vec![
+                (
+                    Type::List(Box::new(Type::String)),
+                    Type::Custom("datatype".into()),
+                ),
+                (Type::String, Type::Custom("datatype".into())),
+            ])
             .category(Category::Custom("dataframe".into()))
     }
 
     fn examples(&self) -> Vec<Example> {
-        vec![Example {
-            description: "Convert a string to a specific datatype",
-            example: r#""i64" | polars into-dtype"#,
-            result: Some(Value::string("i64", Span::test_data())),
-        }]
+        vec![
+            Example {
+                description: "Convert a string to a polars datatype",
+                example: r#""i64" | polars into-dtype"#,
+                result: Some(Value::string("i64", Span::test_data())),
+            },
+            Example {
+                description: "Convert a list of strings to a polars enum datatype",
+                example: r#""i64" | polars into-dtype"#,
+                result: Some(Value::string("enum", Span::test_data())),
+            },
+        ]
     }
 
     fn run(
