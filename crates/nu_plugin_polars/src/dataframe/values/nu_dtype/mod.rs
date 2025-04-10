@@ -313,7 +313,7 @@ pub fn str_to_dtype(dtype: &str, span: Span) -> Result<DataType, ShellError> {
 }
 
 fn str_slice_to_enum<T: AsRef<str>>(v: &[T]) -> DataType {
-    let view_array = Utf8ViewArray::from_slice_values(&v);
+    let view_array = Utf8ViewArray::from_slice_values(v);
     let rev_mapping = RevMapping::build_local(view_array);
     DataType::Enum(
         Some(Arc::new(rev_mapping)),

@@ -10,11 +10,12 @@ use polars::chunked_array::object::builder::ObjectChunkedBuilder;
 use polars::chunked_array::ChunkedArray;
 use polars::datatypes::{AnyValue, PlSmallStr};
 use polars::prelude::{
-    ChunkAnyValue, Column as PolarsColumn, DataFrame, DataType, DatetimeChunked, Float32Type,
-    Float64Type, Int16Type, Int32Type, Int64Type, Int8Type, IntoSeries, ListBooleanChunkedBuilder,
-    ListBuilderTrait, ListPrimitiveChunkedBuilder, ListStringChunkedBuilder, ListType, NamedFrom,
-    NewChunkedArray, ObjectType, PolarsError, Schema, SchemaExt, Series, StructChunked,
-    TemporalMethods, TimeUnit, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    CategoricalChunked, ChunkAnyValue, Column as PolarsColumn, DataFrame, DataType,
+    DatetimeChunked, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, Int8Type,
+    IntoSeries, ListBooleanChunkedBuilder, ListBuilderTrait, ListPrimitiveChunkedBuilder,
+    ListStringChunkedBuilder, ListType, NamedFrom, NewChunkedArray, ObjectType, PolarsError,
+    Schema, SchemaExt, Series, StringChunked, StructChunked, TemporalMethods, TimeUnit, UInt16Type,
+    UInt32Type, UInt64Type, UInt8Type,
 };
 
 use nu_protocol::{Record, ShellError, Span, Value};
@@ -535,6 +536,35 @@ fn typed_column_to_series(name: PlSmallStr, column: TypedColumn) -> Result<Serie
                         inner: vec![],
                     })?;
             Ok(chunked.into_series())
+        }
+        DataType::Enum(maybe_revmapping, ordering) => {
+            let series_values = column
+                .values
+                .iter()
+                .map(|v| value_to_option(v, |v| v.coerce_string()))
+                .collect::<Result<Vec<Option<String>>, ShellError>>()?;
+
+            let string_chunked = StringChunked::new(name, series_values.as_slice());
+            let revmapping = maybe_revmapping.clone().ok_or(ShellError::GenericError {
+                error: "Error creating enum: No categories found".into(),
+                msg: "".into(),
+                span: None,
+                help: None,
+                inner: vec![],
+            })?;
+            let categories = revmapping.get_categories();
+
+            let categorical_chunked =
+                CategoricalChunked::from_string_to_enum(&string_chunked, categories, *ordering)
+                    .map_err(|e| ShellError::GenericError {
+                        error: format!("Error creating enum: {e}"),
+                        msg: "".into(),
+                        span: None,
+                        help: None,
+                        inner: vec![],
+                    })?;
+
+            Ok(categorical_chunked.into_series())
         }
         _ => Err(ShellError::GenericError {
             error: format!("Error creating dataframe: Unsupported type: {column_type:?}"),
