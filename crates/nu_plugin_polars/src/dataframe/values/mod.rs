@@ -1,6 +1,6 @@
 mod file_type;
 mod nu_dataframe;
-mod nu_dtype;
+pub(crate) mod nu_dtype;
 mod nu_expression;
 mod nu_lazyframe;
 mod nu_lazygroupby;

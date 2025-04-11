@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use custom_value::NuDataTypeCustomValue;
 use nu_protocol::{record, ShellError, Span, Value};
-use polars::prelude::{DataType, PlSmallStr, RevMapping, TimeUnit, UnknownKind};
+use polars::prelude::{DataType, Field, PlSmallStr, RevMapping, TimeUnit, UnknownKind};
 use polars_arrow::array::Utf8ViewArray;
 use uuid::Uuid;
 
 use crate::{Cacheable, PolarsPlugin};
 
-use super::{nu_schema::dtype_to_value, CustomValueSupport, PolarsPluginObject, PolarsPluginType};
+use super::{CustomValueSupport, PolarsPluginObject, PolarsPluginType};
 
 #[derive(Debug, Clone)]
 pub struct NuDataType {
@@ -36,6 +36,15 @@ impl NuDataType {
 
     pub fn to_polars(&self) -> DataType {
         self.dtype.clone()
+    }
+
+    /// If the dtype is an enum, the values of the enum will be returned
+    pub fn get_categories(&self) -> Option<Vec<String>> {
+        get_categories(&self.dtype)
+    }
+
+    pub fn dtype_to_value(&self, span: Span) -> Value {
+        dtype_to_value(&self.dtype, span)
     }
 }
 
@@ -86,7 +95,7 @@ impl CustomValueSupport for NuDataType {
     }
 
     fn base_value(self, span: Span) -> Result<Value, ShellError> {
-        Ok(dtype_to_value(&self.dtype, span))
+        Ok(self.dtype_to_value(span))
     }
 
     fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> Result<Self, ShellError> {
@@ -157,6 +166,45 @@ pub fn datatype_list(span: Span) -> Value {
     })
     .collect();
     Value::list(types, span)
+}
+
+pub(crate) fn fields_to_value(fields: impl Iterator<Item = Field>, span: Span) -> Value {
+    let record = fields
+        .map(|field| {
+            let col = field.name().to_string();
+            let val = dtype_to_value(field.dtype(), span);
+            (col, val)
+        })
+        .collect();
+
+    Value::record(record, Span::unknown())
+}
+
+pub(crate) fn value_to_fields(
+    plugin: &PolarsPlugin,
+    value: &Value,
+    span: Span,
+) -> Result<Vec<Field>, ShellError> {
+    let fields = value
+        .as_record()?
+        .into_iter()
+        .map(|(col, val)| match val {
+            Value::Record { .. } => {
+                let fields = value_to_fields(plugin, val, span)?;
+                let dtype = DataType::Struct(fields);
+                Ok(Field::new(col.into(), dtype))
+            }
+            Value::Custom { .. } => {
+                let dtype = NuDataType::try_from_value(plugin, val)?;
+                Ok(Field::new(col.into(), dtype.to_polars()))
+            }
+            _ => {
+                let dtype = str_to_dtype(&val.coerce_string()?, span)?;
+                Ok(Field::new(col.into(), dtype))
+            }
+        })
+        .collect::<Result<Vec<Field>, ShellError>>()?;
+    Ok(fields)
 }
 
 pub fn str_to_dtype(dtype: &str, span: Span) -> Result<DataType, ShellError> {
@@ -333,5 +381,34 @@ fn str_to_time_unit(ts_string: &str, span: Span) -> Result<TimeUnit, ShellError>
             help: None,
             inner: vec![],
         }),
+    }
+}
+
+pub(super) fn dtype_to_value(dtype: &DataType, span: Span) -> Value {
+    match dtype {
+        DataType::Struct(fields) => fields_to_value(fields.iter().cloned(), span),
+        DataType::Enum(_, _) => Value::list(
+            get_categories(dtype)
+                .unwrap_or_default()
+                .iter()
+                .map(|s| Value::string(s, span))
+                .collect(),
+            span,
+        ),
+        _ => Value::string(dtype.to_string().replace('[', "<").replace(']', ">"), span),
+    }
+}
+
+pub(super) fn get_categories(dtype: &DataType) -> Option<Vec<String>> {
+    if let DataType::Enum(Some(rev_mapping), _) = dtype {
+        Some(
+            rev_mapping
+                .get_categories()
+                .iter()
+                .filter_map(|v| v.map(ToString::to_string))
+                .collect::<Vec<String>>(),
+        )
+    } else {
+        None
     }
 }

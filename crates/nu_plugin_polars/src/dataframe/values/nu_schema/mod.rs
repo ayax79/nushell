@@ -4,12 +4,15 @@ use std::sync::Arc;
 
 use custom_value::NuSchemaCustomValue;
 use nu_protocol::{ShellError, Span, Value};
-use polars::prelude::{DataType, Field, Schema, SchemaExt, SchemaRef};
+use polars::prelude::{Schema, SchemaExt, SchemaRef};
 use uuid::Uuid;
 
 use crate::{Cacheable, PolarsPlugin};
 
-use super::{str_to_dtype, CustomValueSupport, NuDataType, PolarsPluginObject, PolarsPluginType};
+use super::{
+    nu_dtype::{fields_to_value, value_to_fields},
+    CustomValueSupport, PolarsPluginObject, PolarsPluginType,
+};
 
 #[derive(Debug, Clone)]
 pub struct NuSchema {
@@ -98,92 +101,8 @@ impl CustomValueSupport for NuSchema {
     }
 }
 
-fn fields_to_value(fields: impl Iterator<Item = Field>, span: Span) -> Value {
-    let record = fields
-        .map(|field| {
-            let col = field.name().to_string();
-            let val = dtype_to_value(field.dtype(), span);
-            (col, val)
-        })
-        .collect();
-
-    Value::record(record, Span::unknown())
-}
-
-pub fn dtype_to_value(dtype: &DataType, span: Span) -> Value {
-    match dtype {
-        DataType::Struct(fields) => fields_to_value(fields.iter().cloned(), span),
-        _ => Value::string(dtype.to_string().replace('[', "<").replace(']', ">"), span),
-    }
-}
-
 fn value_to_schema(plugin: &PolarsPlugin, value: &Value, span: Span) -> Result<Schema, ShellError> {
     let fields = value_to_fields(plugin, value, span)?;
     let schema = Schema::from_iter(fields);
     Ok(schema)
-}
-
-fn value_to_fields(
-    plugin: &PolarsPlugin,
-    value: &Value,
-    span: Span,
-) -> Result<Vec<Field>, ShellError> {
-    let fields = value
-        .as_record()?
-        .into_iter()
-        .map(|(col, val)| match val {
-            Value::Record { .. } => {
-                let fields = value_to_fields(plugin, val, span)?;
-                let dtype = DataType::Struct(fields);
-                Ok(Field::new(col.into(), dtype))
-            }
-            Value::Custom { .. } => {
-                let dtype = NuDataType::try_from_value(plugin, val)?;
-                Ok(Field::new(col.into(), dtype.to_polars()))
-            }
-            _ => {
-                let dtype = str_to_dtype(&val.coerce_string()?, span)?;
-                Ok(Field::new(col.into(), dtype))
-            }
-        })
-        .collect::<Result<Vec<Field>, ShellError>>()?;
-    Ok(fields)
-}
-
-#[cfg(test)]
-mod test {
-
-    use nu_protocol::record;
-
-    use super::*;
-
-    #[test]
-    fn test_value_to_schema() {
-        let plugin = PolarsPlugin::new_test_mode().expect("Failed to create plugin");
-
-        let address = record! {
-            "street" => Value::test_string("str"),
-            "city" => Value::test_string("str"),
-        };
-
-        let value = Value::test_record(record! {
-            "name" => Value::test_string("str"),
-            "age" => Value::test_string("i32"),
-            "address" => Value::test_record(address)
-        });
-
-        let schema = value_to_schema(&plugin, &value, Span::unknown()).unwrap();
-        let expected = Schema::from_iter(vec![
-            Field::new("name".into(), DataType::String),
-            Field::new("age".into(), DataType::Int32),
-            Field::new(
-                "address".into(),
-                DataType::Struct(vec![
-                    Field::new("street".into(), DataType::String),
-                    Field::new("city".into(), DataType::String),
-                ]),
-            ),
-        ]);
-        assert_eq!(schema, expected);
-    }
 }

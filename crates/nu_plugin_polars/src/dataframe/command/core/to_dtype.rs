@@ -1,5 +1,5 @@
 use nu_plugin::PluginCommand;
-use nu_protocol::{Category, Example, ShellError, Signature, Span, Type, Value};
+use nu_protocol::{Category, Example, ShellError, Signature, Type, Value};
 
 use crate::{
     values::{CustomValueSupport, NuDataType},
@@ -36,12 +36,17 @@ impl PluginCommand for ToDataType {
             Example {
                 description: "Convert a string to a specific datatype and back to a nu object",
                 example: r#"'i64' | polars into-dtype | polars into-nu"#,
-                result: Some(Value::string("i64", Span::test_data())),
+                result: Some(Value::test_string("i64")),
             },
             Example {
-                description: "Convert a list of strings to a polars enum datatype and back to a nu object",
+                description:
+                    "Convert a list of strings to a polars enum datatype and back to a nu object",
                 example: r#"[Dog Cat Bird] | polars into-dtype | polars into-nu"#,
-                result: Some(Value::string("enum", Span::test_data())),
+                result: Some(Value::test_list(vec![
+                    Value::test_string("Dog"),
+                    Value::test_string("Cat"),
+                    Value::test_string("Bird"),
+                ])),
             },
         ]
     }
