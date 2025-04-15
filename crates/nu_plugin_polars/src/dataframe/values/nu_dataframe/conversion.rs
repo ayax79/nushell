@@ -5,6 +5,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Duration, FixedOffset, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use indexmap::map::{Entry, IndexMap};
+use log::debug;
 use polars::chunked_array::builder::AnonymousOwnedListBuilder;
 use polars::chunked_array::object::builder::ObjectChunkedBuilder;
 use polars::chunked_array::ChunkedArray;
@@ -538,6 +539,7 @@ fn typed_column_to_series(name: PlSmallStr, column: TypedColumn) -> Result<Serie
             Ok(chunked.into_series())
         }
         DataType::Enum(maybe_revmapping, ordering) => {
+            debug!("Creating enum column: {:?}", column.name());
             let series_values = column
                 .values
                 .iter()
@@ -1450,10 +1452,12 @@ fn utf8_view_array_to_value(array: &Utf8ViewArray) -> Vec<Value> {
 mod tests {
     use indexmap::indexmap;
     use nu_protocol::record;
-    use polars::datatypes::CompatLevel;
-    use polars::prelude::Field;
+    use polars::prelude::{Field, RevMapping};
+    use polars::{datatypes::CompatLevel, prelude::CategoricalOrdering};
     use polars_arrow::array::{BooleanArray, PrimitiveArray};
     use polars_io::prelude::StructArray;
+
+    use crate::values::nu_dtype::str_slice_to_enum;
 
     use super::*;
 
@@ -1859,5 +1863,56 @@ mod tests {
             Series::new("name".into(), [Some("barbaz".to_string()), None])
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_enum_to_series() -> Result<(), Box<dyn std::error::Error>> {
+        let enum_dtype = str_slice_to_enum(&["barbaz", "barbaz2"]);
+        let column = TypedColumn {
+            column: Column::new(
+                "foo",
+                vec![
+                    Value::test_string("barbaz"),
+                    Value::test_string("barbaz2"),
+                    Value::test_nothing(),
+                    Value::test_string("barbaz"),
+                ],
+            ),
+            column_type: Some(enum_dtype),
+        };
+
+        let result = typed_column_to_series("foo".into(), column)?;
+
+        assert_eq!(
+            result,
+            Series::new(
+                "name".into(),
+                [Some("barbaz"), Some("barbaz2"), None, Some("barbaz")]
+            )
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_enum_to_series_err() -> Result<(), Box<dyn std::error::Error>> {
+        let enum_dtype = str_slice_to_enum(&["barbaz", "barbaz2"]);
+        let column = TypedColumn {
+            column: Column::new(
+                "foo",
+                vec![
+                    Value::test_string("barbaz"),
+                    Value::test_string("barbaz3"),
+                    Value::test_nothing(),
+                    Value::test_string("not_an_enum_val"),
+                ],
+            ),
+            column_type: Some(enum_dtype),
+        };
+
+        let result = typed_column_to_series("foo".into(), column);
+
+        assert!(result.is_err());
+        Ok(())
+
     }
 }
