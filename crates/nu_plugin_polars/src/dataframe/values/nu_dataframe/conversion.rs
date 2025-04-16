@@ -11,11 +11,12 @@ use polars::chunked_array::object::builder::ObjectChunkedBuilder;
 use polars::chunked_array::ChunkedArray;
 use polars::datatypes::{AnyValue, PlSmallStr};
 use polars::prelude::{
-    ChunkAnyValue, Column as PolarsColumn, DataFrame, DataType, DatetimeChunked, Float32Type,
-    Float64Type, Int16Type, Int32Type, Int64Type, Int8Type, IntoSeries, ListBooleanChunkedBuilder,
-    ListBuilderTrait, ListPrimitiveChunkedBuilder, ListStringChunkedBuilder, ListType, NamedFrom,
-    NewChunkedArray, ObjectType, PolarsError, Schema, SchemaExt, Series, StructChunked,
-    TemporalMethods, TimeUnit, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    CategoricalChunked, ChunkAnyValue, ChunkCast, Column as PolarsColumn, DataFrame, DataType,
+    DatetimeChunked, Float32Type, Float64Type, Int16Type, Int32Type, Int64Type, Int8Type,
+    IntoSeries, ListBooleanChunkedBuilder, ListBuilderTrait, ListPrimitiveChunkedBuilder,
+    ListStringChunkedBuilder, ListType, NamedFrom, NewChunkedArray, ObjectType, PolarsError,
+    Schema, SchemaExt, Series, StringChunked, StructChunked, TemporalMethods, TimeUnit, UInt16Type,
+    UInt32Type, UInt64Type, UInt8Type,
 };
 
 use nu_protocol::{Record, ShellError, Span, Value};
@@ -1457,8 +1458,8 @@ fn utf8_view_array_to_value(array: &Utf8ViewArray) -> Vec<Value> {
 mod tests {
     use indexmap::indexmap;
     use nu_protocol::record;
-    use polars::prelude::{Field, RevMapping};
-    use polars::{datatypes::CompatLevel, prelude::CategoricalOrdering};
+    use polars::datatypes::CompatLevel;
+    use polars::prelude::Field;
     use polars_arrow::array::{BooleanArray, PrimitiveArray};
     use polars_io::prelude::StructArray;
 
