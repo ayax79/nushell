@@ -26,11 +26,23 @@ impl PluginCommand for ToDataType {
     }
 
     fn examples(&self) -> Vec<Example> {
-        vec![Example {
-            description: "Convert a string to a specific datatype and back to a nu object",
-            example: r#"'i64' | polars into-dtype | polars into-nu"#,
-            result: Some(Value::string("i64", Span::test_data())),
-        }]
+        vec![
+            Example {
+                description: "Convert a string to a specific datatype and back to a nu object",
+                example: r#"'i64' | polars into-dtype | polars into-nu"#,
+                result: Some(Value::test_string("i64")),
+            },
+            Example {
+                description:
+                    "Convert a list of strings to a polars enum datatype and back to a nu object",
+                example: r#"[Dog Cat Bird] | polars into-dtype | polars into-nu"#,
+                result: Some(Value::test_list(vec![
+                    Value::test_string("Dog"),
+                    Value::test_string("Cat"),
+                    Value::test_string("Bird"),
+                ])),
+            },
+        ]
     }
 
     fn run(
