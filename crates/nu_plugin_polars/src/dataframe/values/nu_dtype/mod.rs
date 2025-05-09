@@ -1,8 +1,11 @@
 pub mod custom_value;
 
+use std::sync::Arc;
+
 use custom_value::NuDataTypeCustomValue;
 use nu_protocol::{record, ShellError, Span, Value};
-use polars::prelude::{DataType, PlSmallStr, TimeUnit, UnknownKind};
+use polars::prelude::{DataType, PlSmallStr, RevMapping, TimeUnit, UnknownKind};
+use polars_arrow::array::Utf8ViewArray;
 use uuid::Uuid;
 
 use crate::{Cacheable, PolarsPlugin};
@@ -101,6 +104,16 @@ impl CustomValueSupport for NuDataType {
                 }
             }
             Value::String { val, internal_span } => NuDataType::new_with_str(val, *internal_span),
+            Value::List { vals, .. } => {
+                let enum_vals = vals
+                    .iter()
+                    .map(|v| v.coerce_string())
+                    .collect::<Result<Vec<String>, ShellError>>()?;
+
+                let enum_datatype = str_slice_to_enum(&enum_vals);
+                Ok(NuDataType::new(enum_datatype))
+            }
+
             _ => Err(ShellError::CantConvert {
                 to_type: Self::get_type_static().to_string(),
                 from_type: value.get_type().to_string(),
@@ -313,4 +326,13 @@ fn str_to_time_unit(ts_string: &str, span: Span) -> Result<TimeUnit, ShellError>
             inner: vec![],
         }),
     }
+}
+
+pub(crate) fn str_slice_to_enum<T: AsRef<str>>(v: &[T]) -> DataType {
+    let view_array = Utf8ViewArray::from_slice_values(v);
+    let rev_mapping = RevMapping::build_local(view_array);
+    DataType::Enum(
+        Some(Arc::new(rev_mapping)),
+        polars::prelude::CategoricalOrdering::Physical,
+    )
 }
