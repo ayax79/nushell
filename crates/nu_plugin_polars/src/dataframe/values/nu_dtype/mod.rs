@@ -336,3 +336,32 @@ pub(crate) fn str_slice_to_enum<T: AsRef<str>>(v: &[T]) -> DataType {
         polars::prelude::CategoricalOrdering::Physical,
     )
 }
+
+pub(crate) fn dtype_to_value(dtype: &DataType, span: Span) -> Value {
+    match dtype {
+        DataType::Struct(fields) => fields_to_value(fields.iter().cloned(), span),
+        DataType::Enum(_, _) => Value::list(
+            get_categories(dtype)
+                .unwrap_or_default()
+                .iter()
+                .map(|s| Value::string(s, span))
+                .collect(),
+            span,
+        ),
+        _ => Value::string(dtype.to_string().replace('[', "<").replace(']', ">"), span),
+    }
+}
+
+pub(super) fn get_categories(dtype: &DataType) -> Option<Vec<String>> {
+    if let DataType::Enum(Some(rev_mapping), _) = dtype {
+        Some(
+            rev_mapping
+                .get_categories()
+                .iter()
+                .filter_map(|v| v.map(ToString::to_string))
+                .collect::<Vec<String>>(),
+        )
+    } else {
+        None
+    }
+}
