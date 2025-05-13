@@ -1,5 +1,5 @@
 use nu_plugin::PluginCommand;
-use nu_protocol::{Category, Example, ShellError, Signature, Span, Type, Value};
+use nu_protocol::{Category, Example, ShellError, Signature, Type, Value};
 
 use crate::{
     values::{CustomValueSupport, NuDataType},

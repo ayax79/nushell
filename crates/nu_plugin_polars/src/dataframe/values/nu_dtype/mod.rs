@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use custom_value::NuDataTypeCustomValue;
 use nu_protocol::{record, ShellError, Span, Value};
-use polars::prelude::{DataType, PlSmallStr, RevMapping, TimeUnit, UnknownKind};
+use polars::prelude::{DataType, Field, PlSmallStr, RevMapping, TimeUnit, UnknownKind};
 use polars_arrow::array::Utf8ViewArray;
 use uuid::Uuid;
 
 use crate::{Cacheable, PolarsPlugin};
 
-use super::{nu_schema::dtype_to_value, CustomValueSupport, PolarsPluginObject, PolarsPluginType};
+use super::{CustomValueSupport, PolarsPluginObject, PolarsPluginType};
 
 #[derive(Debug, Clone)]
 pub struct NuDataType {
@@ -335,6 +335,18 @@ pub(crate) fn str_slice_to_enum<T: AsRef<str>>(v: &[T]) -> DataType {
         Some(Arc::new(rev_mapping)),
         polars::prelude::CategoricalOrdering::Physical,
     )
+}
+
+pub(crate) fn fields_to_value(fields: impl Iterator<Item = Field>, span: Span) -> Value {
+    let record = fields
+        .map(|field| {
+            let col = field.name().to_string();
+            let val = dtype_to_value(field.dtype(), span);
+            (col, val)
+        })
+        .collect();
+
+    Value::record(record, Span::unknown())
 }
 
 pub(crate) fn dtype_to_value(dtype: &DataType, span: Span) -> Value {

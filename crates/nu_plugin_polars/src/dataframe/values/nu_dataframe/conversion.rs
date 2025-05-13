@@ -1457,6 +1457,8 @@ mod tests {
     use polars_arrow::array::{BooleanArray, PrimitiveArray};
     use polars_io::prelude::StructArray;
 
+    use crate::values::nu_dtype::str_slice_to_enum;
+
     use super::*;
 
     #[test]
