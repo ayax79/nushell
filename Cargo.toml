@@ -60,6 +60,7 @@ members = [
   "crates/nu-test-support",
   "crates/nu-utils",
   "crates/nuon",
+  "crates/nu-mcp",
 ]
 
 [workspace.dependencies]
@@ -217,6 +218,7 @@ nu-parser = { path = "./crates/nu-parser", version = "0.105.2" }
 nu-path = { path = "./crates/nu-path", version = "0.105.2" }
 nu-plugin-engine = { path = "./crates/nu-plugin-engine", optional = true, version = "0.105.2" }
 nu-protocol = { path = "./crates/nu-protocol", version = "0.105.2" }
+nu-mcp = { path = "./crates/nu-mcp", version = "0.105.2" }
 nu-std = { path = "./crates/nu-std", version = "0.105.2" }
 nu-system = { path = "./crates/nu-system", version = "0.105.2" }
 nu-utils = { path = "./crates/nu-utils", version = "0.105.2" }
