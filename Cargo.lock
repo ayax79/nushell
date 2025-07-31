@@ -4046,6 +4046,8 @@ version = "0.106.2"
 dependencies = [
  "bytes",
  "futures",
+ "nu-engine",
+ "nu-parser",
  "nu-protocol",
  "rmcp",
  "schemars",
