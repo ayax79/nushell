@@ -412,7 +412,7 @@ fn get_command_documentation(
                     ))],
                     parser_info: HashMap::new(),
                 },
-                PipelineData::Value(Value::list(vals, span), None),
+                PipelineData::value(Value::list(vals, span), None),
             ) {
                 if let Ok((str, ..)) = result.collect_string_strict(span) {
                     let _ = writeln!(long_desc, "\n{help_section_name}Input/output types{RESET}:");
@@ -487,7 +487,7 @@ fn get_command_documentation(
                             engine_state,
                             stack,
                             &(&table_call).into(),
-                            PipelineData::Value(result.clone(), None),
+                            PipelineData::value(result.clone(), None),
                         )
                         .ok()
                 });
@@ -497,8 +497,9 @@ fn get_command_documentation(
                     long_desc,
                     "  {}",
                     item.to_expanded_string("", nu_config)
+                        .trim_end()
+                        .trim_start_matches(|c: char| c.is_whitespace() && c != ' ')
                         .replace('\n', "\n  ")
-                        .trim()
                 );
             }
         }
@@ -532,7 +533,7 @@ fn update_ansi_from_config(
                         arguments: vec![argument],
                         parser_info: HashMap::new(),
                     },
-                    PipelineData::Empty,
+                    PipelineData::empty(),
                 ) {
                     if let Ok((str, ..)) = result.collect_string_strict(span) {
                         *ansi_code = str;
