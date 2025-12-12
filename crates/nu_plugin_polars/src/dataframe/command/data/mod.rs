@@ -23,6 +23,7 @@ mod join_where;
 mod last;
 mod len;
 mod lit;
+mod map;
 mod pivot;
 mod qcut;
 mod query_df;
@@ -105,6 +106,7 @@ pub(crate) fn data_commands() -> Vec<Box<dyn PluginCommand<Plugin = PolarsPlugin
         Box::new(ExprArgWhere),
         Box::new(ExprLit),
         Box::new(ExprCol),
+        Box::new(map::ExprMap),
         Box::new(LazyCollect),
         Box::new(LazyExplode),
         Box::new(LazyFillNA),
